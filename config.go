@@ -27,7 +27,58 @@ import (
 	"github.com/mitchellh/osext"
 	"github.com/xanzy/chef-guard/git"
 	"gopkg.in/gcfg.v1"
+	"github.com/marpaia/chef-golang"
 )
+
+type CookbookVersion struct {
+	Files []struct {
+		chef.CookbookItem
+	} `json:"files"`
+	Definitions []struct {
+		chef.CookbookItem
+	} `json:"definitions"`
+	Libraries []struct {
+		chef.CookbookItem
+	} `json:"libraries"`
+	Attributes []struct {
+		chef.CookbookItem
+	} `json:"attributes"`
+	Recipes []struct {
+		chef.CookbookItem
+	} `json:"recipes"`
+	Providers []struct {
+		chef.CookbookItem
+	} `json:"providers"`
+	Resources []struct {
+		chef.CookbookItem
+	} `json:"resources"`
+	Templates []struct {
+		chef.CookbookItem
+	} `json:"templates"`
+	AllFiles []struct {
+		chef.CookbookItem
+	} `json:"all_files"`
+	Metadata struct {
+		Name            string                 `json:"name"`
+		Description     string                 `json:"description"`
+		LongDescription string                 `json:"long_description"`
+		Maintainer      string                 `json:"maintainer"`
+		MaintainerEmail string                 `json:"maintainer_email"`
+		License         string                 `json:"license"`
+		Platforms       map[string]string      `json:"platforms"`
+		Dependencies    map[string]string      `json:"dependencies"`
+		Providing       map[string]string      `json:"providing"`
+		Attributes      map[string]interface{} `json:"attributes"`
+		Recipes         map[string]string      `json:"recipes"`
+		Version         string                 `json:"version"`
+	} `json:"metadata"`
+	Name      string `json:"cookbook_name"`
+	Version   string `json:"version"`
+	FullName  string `json:"name"`
+	Frozen    bool   `json:"frozen?"`
+	ChefType  string `json:"chef_type"`
+	JSONClass string `json:"json_class"`
+}
 
 // Config represents the Chef-Guard configuration
 type Config struct {

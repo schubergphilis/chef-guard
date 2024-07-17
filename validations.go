@@ -230,6 +230,12 @@ func (cg *ChefGuard) compareCookbooks() (int, error) {
 			continue
 		}
 		if sHash, exists := sh[file]; exists {
+
+			// INFO.Printf("Checking file %s", file)
+			// INFO.Printf("Comparing file %s", file)
+			// INFO.Printf("Source hash: %x", sHash)
+			// INFO.Printf("Upload hash: %x", fHash)
+
 			if fHash == sHash {
 				delete(sh, file)
 			} else {
@@ -295,6 +301,7 @@ func (cg *ChefGuard) searchSourceCookbook() (errCode int, err error) {
 
 func (cg *ChefGuard) ignoreThisFile(file string, ignoreDefaultFiles bool) (ignore bool, err error) {
 	if ignoreDefaultFiles {
+		INFO.Printf("Checking default ignore files for %s", file)
 		if file == "metadata.rb" || file == "metadata.json" || strings.HasPrefix(file, "spec/") || strings.HasPrefix(file, "test/") {
 			return true, nil
 		}

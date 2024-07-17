@@ -61,7 +61,7 @@ type ChefGuard struct {
 	Repo           string
 	ChefOrg        string
 	ChefOrgID      *string
-	Cookbook       *chef.CookbookVersion
+	Cookbook       *CookbookVersion
 	CookbookPath   string
 	SourceCookbook *SourceCookbook
 	ChangeDetails  *changeDetails

@@ -22,8 +22,7 @@ import (
 	"compress/gzip"
 	"crypto/hmac"
 	"crypto/md5"
-	"crypto/sha1"
-	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,11 +34,16 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
+	// import hmac
+
+	// import hashlib
+	"crypto/sha256"
+
 	"github.com/gorilla/mux"
-	"github.com/marpaia/chef-golang"
 )
 
 func processCookbook(p *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
@@ -48,6 +52,7 @@ func processCookbook(p *httputil.ReverseProxy) func(http.ResponseWriter, *http.R
 			p.ServeHTTP(w, r)
 			return
 		}
+
 		cg, err := newChefGuard(r)
 		if err != nil {
 			errorHandler(w, fmt.Sprintf("Failed to create a new ChefGuard structure: %s", err), http.StatusInternalServerError)
@@ -118,27 +123,29 @@ func (cg *ChefGuard) processCookbookFiles() error {
 	}
 
 	// Let's first find and save the .gitignore and chefignore files
-	for _, f := range cg.Cookbook.RootFiles {
-		if f.Name == ".gitignore" || f.Name == "chefignore" {
+	for _, f := range cg.Cookbook.AllFiles {
+
+		if f.Path == ".gitignore" || f.Path == "chefignore" {
+
 			content, err := downloadCookbookFile(client, *cg.ChefOrgID, f.Checksum)
 			if err != nil {
 				return fmt.Errorf("Failed to dowload %s from the %s cookbook: %s", f.Path, cg.Cookbook.Name, err)
 			}
 			// Save .gitignore file for later use
-			if f.Name == ".gitignore" {
+			if f.Path == ".gitignore" {
 				cg.GitIgnoreFile = content
 			}
 			// Save chefignore file for later use
-			if f.Name == "chefignore" {
+			if f.Path == "chefignore" {
 				cg.ChefIgnoreFile = content
 			}
 		}
 	}
 
-	for _, f := range cg.getAllCookbookFiles() {
+	for _, f := range cg.Cookbook.AllFiles {
 		ignore, err := cg.ignoreThisFile(f.Name, false)
 		if err != nil {
-			return fmt.Errorf("Ignore check failed for file %s: %s", f.Name, err)
+			return fmt.Errorf("Ignore check failed for file %s: %s", f.Path, err)
 		}
 		if ignore {
 			continue
@@ -233,20 +240,6 @@ func (cg *ChefGuard) getOrganizationID() error {
 	return fmt.Errorf("Could not find an organization ID in reply: %s", string(body))
 }
 
-func (cg *ChefGuard) getAllCookbookFiles() []struct{ chef.CookbookItem } {
-	allFiles := []struct{ chef.CookbookItem }{}
-	allFiles = append(allFiles, cg.Cookbook.Files...)
-	allFiles = append(allFiles, cg.Cookbook.Definitions...)
-	allFiles = append(allFiles, cg.Cookbook.Libraries...)
-	allFiles = append(allFiles, cg.Cookbook.Attributes...)
-	allFiles = append(allFiles, cg.Cookbook.Recipes...)
-	allFiles = append(allFiles, cg.Cookbook.Providers...)
-	allFiles = append(allFiles, cg.Cookbook.Resources...)
-	allFiles = append(allFiles, cg.Cookbook.Templates...)
-	allFiles = append(allFiles, cg.Cookbook.RootFiles...)
-	return allFiles
-}
-
 func (cg *ChefGuard) tagAndPublishCookbook() (int, error) {
 	if !cg.SourceCookbook.artifact {
 		tag := fmt.Sprintf("v%s", cg.Cookbook.Version)
@@ -331,25 +324,151 @@ func downloadCookbookFile(c *http.Client, orgID, checksum string) ([]byte, error
 	return ioutil.ReadAll(resp.Body)
 }
 
-func generateSignedURL(orgID, checksum string) (*url.URL, error) {
-	expires := time.Now().Unix() + 10
-	stringToSign := fmt.Sprintf("GET\n\n\n%d\n/bookshelf/organization-%s/checksum-%s", expires, orgID, checksum)
+// HMAC SHA256
+func hmacSHA256(key, data []byte) []byte {
+	h := hmac.New(sha256.New, key)
+	h.Write(data)
+	return h.Sum(nil)
+}
 
-	h := hmac.New(sha1.New, []byte(cfg.Chef.BookshelfSecret))
-	h.Write([]byte(stringToSign))
-	signature := url.QueryEscape(base64.StdEncoding.EncodeToString(h.Sum(nil)))
+// Hash SHA256
+func hashSHA256(data string) string {
+	h := sha256.New()
+	h.Write([]byte(data))
+	return hex.EncodeToString(h.Sum(nil))
+}
 
-	urlStr := fmt.Sprintf(
-		"%s/bookshelf/organization-%s/checksum-%s?AWSAccessKeyId=%s&Expires=%d&Signature=%s",
-		getChefBaseURL(),
-		orgID,
-		checksum,
-		cfg.Chef.BookshelfKey,
-		expires,
-		signature,
+// Create the signing key
+func getSignatureKey(secret, date, region, service string) []byte {
+	kDate := hmacSHA256([]byte("AWS4"+secret), []byte(date))
+	kRegion := hmacSHA256(kDate, []byte(region))
+	kService := hmacSHA256(kRegion, []byte(service))
+	kSigning := hmacSHA256(kService, []byte("aws4_request"))
+	return kSigning
+}
+
+// Generate the canonical query string
+func getCanonicalQueryString(params url.Values) string {
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	queryString := make([]string, 0, len(params))
+	for _, k := range keys {
+		queryString = append(queryString, fmt.Sprintf("%s=%s", url.QueryEscape(k), url.QueryEscape(params.Get(k))))
+	}
+
+	return strings.Join(queryString, "&")
+}
+
+// Get canonical headers and signed headers
+func getCanonicalHeaders(headers map[string]string) (string, string) {
+	var headerKeys []string
+	for k := range headers {
+		headerKeys = append(headerKeys, strings.ToLower(k))
+	}
+	sort.Strings(headerKeys)
+	var canonicalHeaders, signedHeaders string
+	for _, k := range headerKeys {
+		canonicalHeaders += fmt.Sprintf("%s:%s\n", k, strings.TrimSpace(headers[k]))
+		signedHeaders += fmt.Sprintf("%s;", k)
+	}
+	signedHeaders = strings.TrimSuffix(signedHeaders, ";")
+	return canonicalHeaders, signedHeaders
+}
+
+// Generate the signed URL
+func getSignedURL(accessKey, secretKey, region, service, method, uri string, queryParams map[string]string, headers map[string]string, payload string) string {
+	algorithm := "AWS4-HMAC-SHA256"
+	t := time.Now()
+	date := t.Format("20060102")
+	amzDate := t.Format("20060102T150405Z")
+	credentialScope := fmt.Sprintf("%s/%s/%s/aws4_request", date, region, service)
+
+	query := url.Values{}
+	for k, v := range queryParams {
+		query.Set(k, v)
+	}
+	query.Set("X-Amz-Algorithm", algorithm)
+	query.Set("X-Amz-Credential", fmt.Sprintf("%s/%s", accessKey, credentialScope))
+	query.Set("X-Amz-Date", amzDate)
+	query.Set("X-Amz-Expires", "86400")
+	query.Set("X-Amz-SignedHeaders", "host")
+
+	canonicalURI := uri
+	canonicalQueryString := getCanonicalQueryString(query)
+	canonicalHeaders, signedHeaders := getCanonicalHeaders(headers)
+	// hashedPayload := hashSHA256(payload)
+
+	canonicalRequest := fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s",
+		method,
+		canonicalURI,
+		canonicalQueryString,
+		canonicalHeaders,
+		signedHeaders,
+		payload,
 	)
 
-	return url.Parse(urlStr)
+	// GET
+	// /bookshelf/organization-0751dc28b5a6978ca80465d54cc7f6ff/checksum-6d5e878f0b1e6b2c9e368a4e6234462b
+	// X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=00efc6e783b514a4516a%2F20240717%2Fchef%2Fs3%2Faws4_request&X-Amz-Date=20240717T151227Z&X-Amz-Expires=86400
+	// host:infra.chef.saas.acc.schubergphilis.com
+
+	// host
+	// UNSIGNED-PAYLOAD
+
+	hashedCanonicalRequest := hashSHA256(canonicalRequest)
+	stringToSign := fmt.Sprintf("%s\n%s\n%s\n%s",
+		algorithm,
+		amzDate,
+		credentialScope,
+		hashedCanonicalRequest,
+	)
+
+	// AWS4-HMAC-SHA256
+	// 20240717T171604Z
+	// 20240717/chef/s3/aws4_request
+	// bca48d5c547f6d8b1412a648e9b47a445bdc8173aa6cfe5e61830e8142c1e283
+
+	signingKey := getSignatureKey(secretKey, date, region, service)
+	signature := hex.EncodeToString(hmacSHA256(signingKey, []byte(stringToSign)))
+
+	query.Set("X-Amz-Signature", signature)
+
+	signedURL := fmt.Sprintf("https://%s%s?%s", headers["host"], uri, query.Encode())
+	return signedURL
+}
+
+func generateSignedURL(orgID, checksum string) (*url.URL, error) {
+
+	accessKey := cfg.Chef.BookshelfKey
+	secretKey := cfg.Chef.BookshelfSecret
+	region := "chef"
+	service := "s3"
+	method := "GET"
+	uri := "/bookshelf/organization-" + orgID + "/checksum-" + checksum
+	infraServer := "infra.chef.saas.acc.schubergphilis.com"
+
+	queryParams := map[string]string{}
+
+	headers := map[string]string{
+		"host": infraServer,
+	}
+
+	signedURL := getSignedURL(accessKey, secretKey, region, service, method, uri, queryParams, headers, "UNSIGNED-PAYLOAD")
+
+	// https://infra.chef.saas.acc.schubergphilis.com:443
+	// /bookshelf/organization-0751dc28b5a6978ca80465d54cc7f6ff/checksum-5a64b525b6b148539060365ee4980839
+	// ?X-Amz-Algorithm=AWS4-HMAC-SHA256
+	// &X-Amz-Credential=00efc6e783b514a4516a%2F20240717%2Fchef%2Fs3%2Faws4_request
+	// &X-Amz-Date=20240717T112134Z
+	// &X-Amz-Expires=10800
+	// &X-Amz-SignedHeaders=host
+	// &X-Amz-Signature=10ee4d844d505fa7d7d96133634f93982ba9f3d9e939ffd632201a339ad6244a
+
+	return url.Parse(signedURL)
 }
 
 func writeFileToDisk(filePath string, content io.Reader) error {
@@ -368,9 +487,9 @@ func writeFileToDisk(filePath string, content io.Reader) error {
 	return nil
 }
 
-func addMetadataJSON(tw *tar.Writer, cb *chef.CookbookVersion) error {
-	for _, f := range cb.RootFiles {
-		if f.Name == "metadata.json" {
+func addMetadataJSON(tw *tar.Writer, cb *CookbookVersion) error {
+	for _, f := range cb.AllFiles {
+		if f.Path == "metadata.json" {
 			return nil
 		}
 	}
