@@ -400,7 +400,6 @@ func getSignedURL(accessKey, secretKey, region, service, method, uri string, que
 	canonicalURI := uri
 	canonicalQueryString := getCanonicalQueryString(query)
 	canonicalHeaders, signedHeaders := getCanonicalHeaders(headers)
-	// hashedPayload := hashSHA256(payload)
 
 	canonicalRequest := fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s",
 		method,
@@ -445,16 +444,16 @@ func generateSignedURL(orgID, checksum string) (*url.URL, error) {
 
 	accessKey := cfg.Chef.BookshelfKey
 	secretKey := cfg.Chef.BookshelfSecret
-	region := "chef"
+	region := cfg.Chef.BookshelfRegion
 	service := "s3"
 	method := "GET"
-	uri := "/bookshelf/organization-" + orgID + "/checksum-" + checksum
-	infraServer := "infra.chef.saas.acc.schubergphilis.com"
+	uri := fmt.Sprintf("/%s/organization-%s/checksum-%s", cfg.Chef.BookshelfBucket, orgID, checksum)
+	bookshelfDomain := cfg.Chef.BookshelfDomain
 
 	queryParams := map[string]string{}
 
 	headers := map[string]string{
-		"host": infraServer,
+		"host": bookshelfDomain,
 	}
 
 	signedURL := getSignedURL(accessKey, secretKey, region, service, method, uri, queryParams, headers, "UNSIGNED-PAYLOAD")
@@ -467,6 +466,8 @@ func generateSignedURL(orgID, checksum string) (*url.URL, error) {
 	// &X-Amz-Expires=10800
 	// &X-Amz-SignedHeaders=host
 	// &X-Amz-Signature=10ee4d844d505fa7d7d96133634f93982ba9f3d9e939ffd632201a339ad6244a
+
+	INFO.Printf("Signed URL: %s", signedURL)
 
 	return url.Parse(signedURL)
 }
