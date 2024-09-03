@@ -467,8 +467,6 @@ func generateSignedURL(orgID, checksum string) (*url.URL, error) {
 	// &X-Amz-SignedHeaders=host
 	// &X-Amz-Signature=10ee4d844d505fa7d7d96133634f93982ba9f3d9e939ffd632201a339ad6244a
 
-	INFO.Printf("Signed URL: %s", signedURL)
-
 	return url.Parse(signedURL)
 }
 

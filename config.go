@@ -30,6 +30,7 @@ import (
 	"gopkg.in/gcfg.v1"
 )
 
+// TODO: Extend from chef.CookbookVersion
 type CookbookVersion struct {
 	Files []struct {
 		chef.CookbookItem
