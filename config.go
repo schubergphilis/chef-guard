@@ -30,55 +30,11 @@ import (
 	"gopkg.in/gcfg.v1"
 )
 
-// TODO: Extend from chef.CookbookVersion
 type CookbookVersion struct {
-	Files []struct {
-		chef.CookbookItem
-	} `json:"files"`
-	Definitions []struct {
-		chef.CookbookItem
-	} `json:"definitions"`
-	Libraries []struct {
-		chef.CookbookItem
-	} `json:"libraries"`
-	Attributes []struct {
-		chef.CookbookItem
-	} `json:"attributes"`
-	Recipes []struct {
-		chef.CookbookItem
-	} `json:"recipes"`
-	Providers []struct {
-		chef.CookbookItem
-	} `json:"providers"`
-	Resources []struct {
-		chef.CookbookItem
-	} `json:"resources"`
-	Templates []struct {
-		chef.CookbookItem
-	} `json:"templates"`
+	chef.CookbookVersion
 	AllFiles []struct {
 		chef.CookbookItem
 	} `json:"all_files"`
-	Metadata struct {
-		Name            string                 `json:"name"`
-		Description     string                 `json:"description"`
-		LongDescription string                 `json:"long_description"`
-		Maintainer      string                 `json:"maintainer"`
-		MaintainerEmail string                 `json:"maintainer_email"`
-		License         string                 `json:"license"`
-		Platforms       map[string]string      `json:"platforms"`
-		Dependencies    map[string]string      `json:"dependencies"`
-		Providing       map[string]string      `json:"providing"`
-		Attributes      map[string]interface{} `json:"attributes"`
-		Recipes         map[string]string      `json:"recipes"`
-		Version         string                 `json:"version"`
-	} `json:"metadata"`
-	Name      string `json:"cookbook_name"`
-	Version   string `json:"version"`
-	FullName  string `json:"name"`
-	Frozen    bool   `json:"frozen?"`
-	ChefType  string `json:"chef_type"`
-	JSONClass string `json:"json_class"`
 }
 
 // Config represents the Chef-Guard configuration
