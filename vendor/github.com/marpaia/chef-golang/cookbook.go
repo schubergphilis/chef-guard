@@ -91,16 +91,16 @@ type CookbookItem struct {
 //
 // Usgae:
 //
-//	cookbooks, err := chef.GetCookbooks()
-//	if err != nil {
-//	    fmt.Println(err)
-//	    os.Exit(1)
-//	}
-//	// do what you please with the "cookbooks" variable which is a map of
-//	// cookbook names to chef.Cookbook types
-//	for name, cookbook := range cookbooks {
-//	    fmt.Println(name, cookbook.Version[0])
-//	 }
+//     cookbooks, err := chef.GetCookbooks()
+//     if err != nil {
+//         fmt.Println(err)
+//         os.Exit(1)
+//     }
+//     // do what you please with the "cookbooks" variable which is a map of
+//     // cookbook names to chef.Cookbook types
+//     for name, cookbook := range cookbooks {
+//         fmt.Println(name, cookbook.Version[0])
+//      }
 func (chef *Chef) GetCookbooks() (map[string]*Cookbook, error) {
 	resp, err := chef.Get("cookbooks")
 	if err != nil {
@@ -127,18 +127,18 @@ func (chef *Chef) GetCookbooks() (map[string]*Cookbook, error) {
 //
 // Usage:
 //
-//	cookbook, ok, err := chef.GetCookbook("apache")
-//	if err != nil {
-//	    fmt.Println(err)
-//	    os.Exit(1)
-//	}
-//	if !ok {
-//	    fmt.Println("Couldn't find that cookbook!")
-//	} else {
-//	    // do what you please with the "cookbook" variable which is of the
-//	    // *Chef.Cookbook type
-//	    fmt.Printf("%#v\n", cookbook)
-//	}
+//     cookbook, ok, err := chef.GetCookbook("apache")
+//     if err != nil {
+//         fmt.Println(err)
+//         os.Exit(1)
+//     }
+//     if !ok {
+//         fmt.Println("Couldn't find that cookbook!")
+//     } else {
+//         // do what you please with the "cookbook" variable which is of the
+//         // *Chef.Cookbook type
+//         fmt.Printf("%#v\n", cookbook)
+//     }
 func (chef *Chef) GetCookbook(name string) (*Cookbook, bool, error) {
 	resp, err := chef.Get(fmt.Sprintf("cookbooks/%s", name))
 	if err != nil {
@@ -168,18 +168,18 @@ func (chef *Chef) GetCookbook(name string) (*Cookbook, bool, error) {
 //
 // Usage:
 //
-//	cookbook, ok, err := chef.GetCookbookVersion("apache", "1.0.0")
-//	if err != nil {
-//	    fmt.Println(err)
-//	    os.Exit(1)
-//	}
-//	if !ok {
-//	    fmt.Println("Couldn't find that cookbook version!")
-//	} else {
-//	    // do what you please with the "cookbook" variable which is of the
-//	    // *Chef.CookbookVersion type
-//	    fmt.Printf("%#v\n", cookbook)
-//	}
+//     cookbook, ok, err := chef.GetCookbookVersion("apache", "1.0.0")
+//     if err != nil {
+//         fmt.Println(err)
+//         os.Exit(1)
+//     }
+//     if !ok {
+//         fmt.Println("Couldn't find that cookbook version!")
+//     } else {
+//         // do what you please with the "cookbook" variable which is of the
+//         // *Chef.CookbookVersion type
+//         fmt.Printf("%#v\n", cookbook)
+//     }
 func (chef *Chef) GetCookbookVersion(name, version string) (*CookbookVersion, bool, error) {
 	resp, err := chef.Get(fmt.Sprintf("cookbooks/%s/%s", name, version))
 	if err != nil {

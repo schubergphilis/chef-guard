@@ -38,10 +38,6 @@ import (
 	"strings"
 	"time"
 
-	// import hmac
-
-	// import hashlib
-
 	"github.com/gorilla/mux"
 )
 
@@ -51,7 +47,6 @@ func processCookbook(p *httputil.ReverseProxy) func(http.ResponseWriter, *http.R
 			p.ServeHTTP(w, r)
 			return
 		}
-
 		cg, err := newChefGuard(r)
 		if err != nil {
 			errorHandler(w, fmt.Sprintf("Failed to create a new ChefGuard structure: %s", err), http.StatusInternalServerError)

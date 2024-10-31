@@ -230,12 +230,6 @@ func (cg *ChefGuard) compareCookbooks() (int, error) {
 			continue
 		}
 		if sHash, exists := sh[file]; exists {
-
-			// INFO.Printf("Checking file %s", file)
-			// INFO.Printf("Comparing file %s", file)
-			// INFO.Printf("Source hash: %x", sHash)
-			// INFO.Printf("Upload hash: %x", fHash)
-
 			if fHash == sHash {
 				delete(sh, file)
 			} else {
