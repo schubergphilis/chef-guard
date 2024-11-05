@@ -20,10 +20,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"crypto/hmac"
 	"crypto/md5"
-	"crypto/sha1"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,7 +28,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -298,7 +294,7 @@ func downloadCookbookFile(c *http.Client, orgID, checksum string) ([]byte, error
 	if cfg.Chef.Type == "goiardi" {
 		urlStr = fmt.Sprintf("%s/file_store/%s", getChefBaseURL(), checksum)
 	} else {
-		u, err := generateSignedURL(orgID, checksum)
+		u, err := generateAWSV4SignedURL(orgID, checksum)
 		if err != nil {
 			return nil, err
 		}
@@ -316,35 +312,6 @@ func downloadCookbookFile(c *http.Client, orgID, checksum string) ([]byte, error
 	}
 
 	return ioutil.ReadAll(resp.Body)
-}
-
-func generateV12SignedURL(orgID, checksum string) (*url.URL, error) {
-	expires := time.Now().Unix() + 10
-	stringToSign := fmt.Sprintf("GET\n\n\n%d\n/bookshelf/organization-%s/checksum-%s", expires, orgID, checksum)
-
-	h := hmac.New(sha1.New, []byte(cfg.Chef.BookshelfSecret))
-	h.Write([]byte(stringToSign))
-	signature := url.QueryEscape(base64.StdEncoding.EncodeToString(h.Sum(nil)))
-
-	urlStr := fmt.Sprintf(
-		"%s/bookshelf/organization-%s/checksum-%s?AWSAccessKeyId=%s&Expires=%d&Signature=%s",
-		getChefBaseURL(),
-		orgID,
-		checksum,
-		cfg.Chef.BookshelfKey,
-		expires,
-		signature,
-	)
-
-	return url.Parse(urlStr)
-}
-
-func generateSignedURL(orgID, checksum string) (*url.URL, error) {
-	if cfg.Chef.Version >= 15 {
-		return generateAWSV4SignedURL(orgID, checksum)
-	} else {
-		return generateV12SignedURL(orgID, checksum)
-	}
 }
 
 func writeFileToDisk(filePath string, content io.Reader) error {
