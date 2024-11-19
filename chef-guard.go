@@ -38,7 +38,7 @@ import (
 )
 
 // VERSION holds the current version
-const VERSION = "0.7.3"
+const VERSION = "0.8.0"
 
 var chefKey string
 
@@ -61,7 +61,7 @@ type ChefGuard struct {
 	Repo           string
 	ChefOrg        string
 	ChefOrgID      *string
-	Cookbook       *chef.CookbookVersion
+	Cookbook       *CookbookVersion
 	CookbookPath   string
 	SourceCookbook *SourceCookbook
 	ChangeDetails  *changeDetails

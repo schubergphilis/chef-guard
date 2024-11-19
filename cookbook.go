@@ -20,10 +20,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"crypto/hmac"
 	"crypto/md5"
-	"crypto/sha1"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,7 +28,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -39,7 +35,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/marpaia/chef-golang"
 )
 
 func processCookbook(p *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
@@ -118,27 +113,29 @@ func (cg *ChefGuard) processCookbookFiles() error {
 	}
 
 	// Let's first find and save the .gitignore and chefignore files
-	for _, f := range cg.Cookbook.RootFiles {
-		if f.Name == ".gitignore" || f.Name == "chefignore" {
+	for _, f := range cg.Cookbook.AllFiles {
+
+		if f.Path == ".gitignore" || f.Path == "chefignore" {
+
 			content, err := downloadCookbookFile(client, *cg.ChefOrgID, f.Checksum)
 			if err != nil {
 				return fmt.Errorf("Failed to dowload %s from the %s cookbook: %s", f.Path, cg.Cookbook.Name, err)
 			}
 			// Save .gitignore file for later use
-			if f.Name == ".gitignore" {
+			if f.Path == ".gitignore" {
 				cg.GitIgnoreFile = content
 			}
 			// Save chefignore file for later use
-			if f.Name == "chefignore" {
+			if f.Path == "chefignore" {
 				cg.ChefIgnoreFile = content
 			}
 		}
 	}
 
-	for _, f := range cg.getAllCookbookFiles() {
+	for _, f := range cg.Cookbook.AllFiles {
 		ignore, err := cg.ignoreThisFile(f.Name, false)
 		if err != nil {
-			return fmt.Errorf("Ignore check failed for file %s: %s", f.Name, err)
+			return fmt.Errorf("Ignore check failed for file %s: %s", f.Path, err)
 		}
 		if ignore {
 			continue
@@ -233,20 +230,6 @@ func (cg *ChefGuard) getOrganizationID() error {
 	return fmt.Errorf("Could not find an organization ID in reply: %s", string(body))
 }
 
-func (cg *ChefGuard) getAllCookbookFiles() []struct{ chef.CookbookItem } {
-	allFiles := []struct{ chef.CookbookItem }{}
-	allFiles = append(allFiles, cg.Cookbook.Files...)
-	allFiles = append(allFiles, cg.Cookbook.Definitions...)
-	allFiles = append(allFiles, cg.Cookbook.Libraries...)
-	allFiles = append(allFiles, cg.Cookbook.Attributes...)
-	allFiles = append(allFiles, cg.Cookbook.Recipes...)
-	allFiles = append(allFiles, cg.Cookbook.Providers...)
-	allFiles = append(allFiles, cg.Cookbook.Resources...)
-	allFiles = append(allFiles, cg.Cookbook.Templates...)
-	allFiles = append(allFiles, cg.Cookbook.RootFiles...)
-	return allFiles
-}
-
 func (cg *ChefGuard) tagAndPublishCookbook() (int, error) {
 	if !cg.SourceCookbook.artifact {
 		tag := fmt.Sprintf("v%s", cg.Cookbook.Version)
@@ -311,7 +294,7 @@ func downloadCookbookFile(c *http.Client, orgID, checksum string) ([]byte, error
 	if cfg.Chef.Type == "goiardi" {
 		urlStr = fmt.Sprintf("%s/file_store/%s", getChefBaseURL(), checksum)
 	} else {
-		u, err := generateSignedURL(orgID, checksum)
+		u, err := generateAWSV4SignedURL(orgID, checksum)
 		if err != nil {
 			return nil, err
 		}
@@ -331,27 +314,6 @@ func downloadCookbookFile(c *http.Client, orgID, checksum string) ([]byte, error
 	return ioutil.ReadAll(resp.Body)
 }
 
-func generateSignedURL(orgID, checksum string) (*url.URL, error) {
-	expires := time.Now().Unix() + 10
-	stringToSign := fmt.Sprintf("GET\n\n\n%d\n/bookshelf/organization-%s/checksum-%s", expires, orgID, checksum)
-
-	h := hmac.New(sha1.New, []byte(cfg.Chef.BookshelfSecret))
-	h.Write([]byte(stringToSign))
-	signature := url.QueryEscape(base64.StdEncoding.EncodeToString(h.Sum(nil)))
-
-	urlStr := fmt.Sprintf(
-		"%s/bookshelf/organization-%s/checksum-%s?AWSAccessKeyId=%s&Expires=%d&Signature=%s",
-		getChefBaseURL(),
-		orgID,
-		checksum,
-		cfg.Chef.BookshelfKey,
-		expires,
-		signature,
-	)
-
-	return url.Parse(urlStr)
-}
-
 func writeFileToDisk(filePath string, content io.Reader) error {
 	if err := os.MkdirAll(path.Dir(filePath), 0755); err != nil {
 		return err
@@ -368,9 +330,9 @@ func writeFileToDisk(filePath string, content io.Reader) error {
 	return nil
 }
 
-func addMetadataJSON(tw *tar.Writer, cb *chef.CookbookVersion) error {
-	for _, f := range cb.RootFiles {
-		if f.Name == "metadata.json" {
+func addMetadataJSON(tw *tar.Writer, cb *CookbookVersion) error {
+	for _, f := range cb.AllFiles {
+		if f.Path == "metadata.json" {
 			return nil
 		}
 	}

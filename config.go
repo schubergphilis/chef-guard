@@ -24,10 +24,18 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/marpaia/chef-golang"
 	"github.com/mitchellh/osext"
 	"github.com/xanzy/chef-guard/git"
 	"gopkg.in/gcfg.v1"
 )
+
+type CookbookVersion struct {
+	chef.CookbookVersion
+	AllFiles []struct {
+		chef.CookbookItem
+	} `json:"all_files"`
+}
 
 // Config represents the Chef-Guard configuration
 type Config struct {
@@ -81,6 +89,9 @@ type Config struct {
 		ErchefPort      int
 		BookshelfKey    string
 		BookshelfSecret string
+		BookshelfBucket string
+		BookshelfDomain string
+		BookshelfRegion string
 		User            string
 		Key             string
 	}
@@ -156,6 +167,9 @@ func verifyRequiredFields(c *Config) error {
 		"Chef->ErchefPort":         c.Chef.ErchefPort,
 		"Chef->BookshelfKey":       c.Chef.BookshelfKey,
 		"Chef->BookshelfSecret":    c.Chef.BookshelfSecret,
+		"Chef->BookshelfBucket":    c.Chef.BookshelfBucket,
+		"Chef->BookshelfDomain":    c.Chef.BookshelfDomain,
+		"Chef->BookshelfRegion":    c.Chef.BookshelfRegion,
 		"Chef->User":               c.Chef.User,
 		"Chef->Key":                c.Chef.Key,
 		"Community->Supermarket":   c.Community.Supermarket,
