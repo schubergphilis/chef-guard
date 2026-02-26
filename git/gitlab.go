@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -36,31 +35,6 @@ const (
 // GetContent implements the Git interface
 func (g *GitLab) GetContent(project, path string) (*File, interface{}, error) {
 	ns := fmt.Sprintf("%s/%s", g.group, project)
-
-	treeOpts := &gitlab.ListTreeOptions{
-		Path: gitlab.String(path),
-	}
-	tree, resp, err := g.client.Repositories.ListTree(ns, treeOpts)
-	if err != nil {
-		if resp != nil {
-			switch resp.StatusCode {
-			case http.StatusNotFound:
-				return nil, nil, nil
-			case http.StatusUnauthorized:
-				return nil, nil, fmt.Errorf(invalidGitLabToken, g.group)
-			}
-		}
-		return nil, nil, fmt.Errorf("Error retrieving tree for %s: %v", path, err)
-	}
-
-	if len(tree) > 0 {
-		var files []string
-		for _, file := range tree {
-			files = append(files, filepath.Join(path, file.Name))
-		}
-
-		return nil, files, nil
-	}
 
 	fileOpts := &gitlab.GetFileOptions{
 		Ref: gitlab.String("master"),

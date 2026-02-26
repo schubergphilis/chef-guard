@@ -125,13 +125,6 @@ func (cg *ChefGuard) writeConfigToGit(action string, config []byte) (string, err
 		return cg.gitClient.UpdateFile(cg.Repo, path, file.SHA, msg, user, config)
 	}
 
-	if dir != nil && action == "DELETE" {
-		msg = fmt.Sprintf("Config for %s %%s deleted by Chef-Guard",
-			strings.TrimSuffix(cg.ChangeDetails.Type, "s"),
-		)
-		return "master", cg.gitClient.DeleteDirectory(cg.Repo, msg, dir, user)
-	}
-
 	return "", fmt.Errorf("Unknown error while updating file or directory content of %s", path)
 }
 

@@ -295,6 +295,7 @@ func (cg *ChefGuard) searchSourceCookbook() (errCode int, err error) {
 
 func (cg *ChefGuard) ignoreThisFile(file string, ignoreDefaultFiles bool) (ignore bool, err error) {
 	if ignoreDefaultFiles {
+		INFO.Printf("Checking default ignore files for %s", file)
 		if file == "metadata.rb" || file == "metadata.json" || strings.HasPrefix(file, "spec/") || strings.HasPrefix(file, "test/") {
 			return true, nil
 		}
