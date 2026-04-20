@@ -56,7 +56,7 @@ type Config struct {
 		SearchGit          bool
 		PublishCookbook    bool
 		Blacklist          string
-		DevEnvironment     string
+		DevEnvironments    string
 		GitConfig          string
 		GitCookbookConfigs string
 		IncludeFCs         string
@@ -75,7 +75,7 @@ type Config struct {
 		SearchGit          *bool
 		PublishCookbook    *bool
 		Blacklist          *string
-		DevEnvironment     *string
+		DevEnvironments    *string
 		GitCookbookConfigs *string
 		ExcludeFCs         *string
 	}

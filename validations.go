@@ -144,8 +144,8 @@ func (cg *ChefGuard) validateConstraints(body []byte) (int, error) {
 		return http.StatusBadRequest, fmt.Errorf("Failed to unmarshal body %s: %s", string(body), err)
 	}
 
-	devEnv := getEffectiveConfig("DevEnvironment", cg.ChefOrg).(string)
-	if c.CookbookVersions != nil && (c.ChefType == "environment" && c.Environment != devEnv) {
+	devEnvs := strings.Split(getEffectiveConfig("DevEnvironments", cg.ChefOrg).(string), ",")
+	if c.CookbookVersions != nil && (c.ChefType == "environment" && !contains(devEnvs, c.Environment)) {
 		errCode, err := cg.checkDependencies(parseCookbookVersions(c.CookbookVersions), true)
 		if err != nil {
 			if errCode == http.StatusPreconditionFailed {

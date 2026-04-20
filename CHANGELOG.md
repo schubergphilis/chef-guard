@@ -1,5 +1,13 @@
 Chef-Guard CHANGELOG
 ====================
+0.9.0
+------------------
+- Change `devenvironment` config option to `devenvironments` to support multiple dev environments.
+
+
+0.8.0
+------------------
+- Add support for Chef Infra Server 15
 
 0.7.4
 ------------------
