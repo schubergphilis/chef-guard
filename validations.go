@@ -145,6 +145,9 @@ func (cg *ChefGuard) validateConstraints(body []byte) (int, error) {
 	}
 
 	devEnvs := strings.Split(getEffectiveConfig("DevEnvironments", cg.ChefOrg).(string), ",")
+	for i, s := range devEnvs {
+		devEnvs[i] = strings.TrimSpace(s)
+	}
 	if c.CookbookVersions != nil && (c.ChefType == "environment" && !contains(devEnvs, c.Environment)) {
 		errCode, err := cg.checkDependencies(parseCookbookVersions(c.CookbookVersions), true)
 		if err != nil {
