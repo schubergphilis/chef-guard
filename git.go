@@ -329,6 +329,9 @@ func remarshalConfig(action string, data []byte) ([]byte, error) {
 	if _, found := config["automatic"]; found {
 		delete(config, "automatic")
 	}
+	if _, found := config["private_key"]; found {
+		delete(config, "private_key")
+	}
 	c, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return nil, err
